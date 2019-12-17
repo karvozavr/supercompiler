@@ -8,7 +8,6 @@ infixl 5 :@:
 
 data Expr = 
       Var Name                 -- Variable reference
-    | Literal Int
     | Constr Name [Expr]
     | Lam Name Expr
     | Expr :@: Expr
@@ -21,5 +20,8 @@ data Pat = Pat Name [Name] deriving (Eq)
 
 data Def = Def Name Expr deriving (Eq) 
 
-data Program = Program Expr [Def] deriving (Eq) 
+data Program = Program [Name] Expr [Def] deriving (Eq) 
 
+
+type Renaming = [(Name, Name)]
+type Subst = [(Name, Expr)]

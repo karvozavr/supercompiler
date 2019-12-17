@@ -1,6 +1,6 @@
 module LanguageIO where 
 
-import Language
+import Language 
 import LanguageLib
 import Data.List
 
@@ -22,4 +22,4 @@ instance Show Def where
     show (Def name body) = name ++ " = " ++ (show body)    
 
 instance Show Program where
-    show (Program expr defs) = show expr ++ " where\n\n" ++ intercalate "\n\n" (map show defs)
+    show (Program args expr defs) = "program(" ++ (intercalate ", " args) ++ "): " ++ show expr ++ " where\n\n" ++ intercalate "\n\n" (map show defs)

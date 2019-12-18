@@ -11,8 +11,9 @@ data Expr =
     | Constr Name [Expr]
     | Lam Name Expr
     | Expr :@: Expr
-    | FunCall Name [Expr] -- Function call with arguments
-    | Let (Name, Expr) Expr    -- Name binding 
+    | FunCall Name [Expr] -- Builtin function call with arguments
+    | GlobRef Name -- Global reference
+    | Let (Name, Expr) Expr -- Name binding 
     | Case Expr [(Pat, Expr)]
     deriving (Eq)
 

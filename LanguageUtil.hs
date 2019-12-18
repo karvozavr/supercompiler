@@ -16,7 +16,12 @@ infixl 5 \-\
 (Let (x, e1) e2)    \-\ sub = Let (x, (e1 \-\ sub)) (e2 \-\ sub)
 (Case e cases)      \-\ sub = Case (e \-\ sub) (map (\(p, ei) -> (p, ei \-\ sub)) cases)
 (l :@: r)           \-\ sub = (l \-\ sub) :@: (r \-\ sub)
+ref@(GlobRef _)     \-\ sub = ref
 
 isValue :: Expr -> Bool
 isValue (Constr _ args) = and $ map isValue args
 isValue _ = False
+
+resolveRef :: Program -> Name -> Expr 
+resolveRef (Program _ _ defs) name = val where
+    (Def _ val) = maybe (error ("Unresolved Reference " ++ name)) id (find (\(Def name' val) -> name' == name) defs)

@@ -11,7 +11,6 @@ instance Show Expr where
     show (Constr name args)  = name ++ "(" ++ (intercalate ", " (map show args)) ++ ")"
     show (Lam arg expr)      = "\\" ++ arg ++ " " ++ (show expr)
     show (l :@: r)           = "(" ++ (show l) ++ " " ++ (show r) ++ ")"  
-    show (FunCall name args) = name ++ "(" ++ (intercalate ", " (map show args)) ++ ")"
     show (GlobRef name)      = name
     show (Let (var, e1) e2)  = "let " ++ var ++ " = " ++ (show e1) ++ " in " ++ (show e2)
     show (Case expr cases)   = "case " ++ (show expr) ++ " of\n" ++ (concatMap (\(p, e) -> "    " ++ (show p) ++ " -> " ++ (show e) ++ "\n") cases)

@@ -2,7 +2,7 @@ module Graph where
 
 import Language
 
-data Option = Option Expr Pat
+data Option = Option Name Pat
 
 data Step a = 
       Edge a 

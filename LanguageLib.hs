@@ -29,10 +29,10 @@ bTrueP = Pat "True" []
 bFalseP = Pat "False" []
 
 plus :: Expr -> Expr -> Expr
-plus x y = FunCall "+" [x, y]
+plus x y = (GlobRef "+") :@: x :@: y
 
 mul :: Expr -> Expr -> Expr
-mul x y = FunCall "*" [x, y]
+mul x y =  (GlobRef "*") :@: x :@: y
 
 fromBool a = if a then bTrue else bFalse
 
@@ -41,9 +41,7 @@ builtinMul [x, y] = num ((numFromChurch x) * (numFromChurch y))
 builtinLess [x, y] = fromBool ((numFromChurch x) < (numFromChurch y))
 builtinMore [x, y] = fromBool ((numFromChurch x) > (numFromChurch y))
 
-builtins :: [(Name, [Expr] -> Expr)]
+builtins :: [Def]
 builtins = [
-    ("+", builtinPlus),
-    ("*", builtinMul),
-    ("<", builtinLess),
-    (">", builtinMore)]
+    Def "+" $ Lam "builtin_x" $ Lam "builtin_y" (Case (Var "builtin_x") [(Pat "Z" [], Var "builtin_y"), (Pat "S" ["builtin_x'"], Constr "S" [Var "builtin_x'", Var "builtin_y"])]),
+    Def "*" $ Lam "builtin_x" $ Lam "builtin_y" (Case (Var "builtin_x") [(Pat "Z" [], Constr "Z" []), (Pat "S" ["builtin_x'"], plus (Var "builtin_y") (mul (Var "builtin_x'") (Var "builtin_y")))]) ]

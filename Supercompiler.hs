@@ -4,16 +4,22 @@ import Graph
 import Language
 import LanguageUtil
 import Interpreter
+import Data.List
 
 type NameSupply = [Name]
 type Driver = NameSupply -> Expr -> Step Expr
 
 data Context = Context { memoized :: [Expr] }  
 
-buildTree :: Driver -> NameSupply -> Expr -> Graph Expr
-buildTree driver (name:ns) expr | True = undefined -- TODO whistle
-buildTree driver ns expr | otherwise = case driver NameSupply expr of 
-    Edges edges -> Graph expr $ Edges $ map (buildTree driver ns) edges 
+buildTree :: Context -> Driver -> NameSupply -> Expr -> Graph Expr
+buildTree ctx driver (name:ns) expr = Node expr Stop where
+    r = find (\memE -> (renaming memE expr) /= Nothing) $ memoized ctx
+    algorithm = case r of 
+        Just ren -> undefined
+        Nothing  -> undefined
+
+furtherTransform ctx driver ns expr = case driver ns expr of 
+    Edges edges -> Node expr $ Edges $ map (buildTree ctx driver ns) edges 
 
 getDriver :: Program -> Driver
 getDriver p = drive where

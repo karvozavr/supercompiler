@@ -23,10 +23,10 @@ intStep p (l :@: r) = (intStep p l) :@: r
 intStep p (Case e pats) 
     | not $ isValue e = Case (intStep p e) pats
 
-intStep p (Case c@(Constr name args) pats) = 
+intStep p caseExpr@(Case c@(Constr name args) pats) = 
     expr \-\ (zip argsP args) where
         res         = find (\((Pat nameP _), _) -> name == nameP) pats
-        ((Pat _ argsP), expr) = maybe (error ("No pattern found for " ++ name)) id res
+        ((Pat _ argsP), expr) = maybe (error ("No pattern found for " ++ name ++ "\n" ++ show caseExpr)) id res
 
 intStep p (GlobRef name) = resolveRef p name
 

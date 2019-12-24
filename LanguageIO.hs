@@ -12,7 +12,7 @@ instance Show Expr where
     show (Lam arg expr)      = "\\" ++ arg ++ " " ++ (show expr)
     show (l :@: r)           = "(" ++ (show l) ++ " " ++ (show r) ++ ")"  
     show (GlobRef name)      = name
-    show (Let (var, e1) e2)  = "let " ++ var ++ " = " ++ (show e1) ++ " in " ++ (show e2)
+    show (Let (var, e1) e2)  = "let " ++ var ++ " = " ++ (show e1) ++ " in (" ++ (show e2) ++ ")"
     show (Case expr cases)   = "case " ++ (show expr) ++ " of\n\t{\n" ++ (concatMap (\(p, e) -> "\t\t" ++ (show p) ++ " -> " ++ (show e) ++ "\n") cases) ++ "\t}"
 
 instance Show Pat where

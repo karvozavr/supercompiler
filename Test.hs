@@ -8,6 +8,9 @@ import Interpreter
 import Supercompiler
 import Data.Either
 import Graph
+import Debug.Trace
+import Data.List
+
 
 fdefTest1 = Def "Hello" (Let ("z", GlobRef "+" :@: Var "x" :@: Var "y") (Var "z"))
 
@@ -25,7 +28,7 @@ upto_f = Def "upto" $ Lam "m" $ Lam "n" $ Case (GlobRef ">" :@: Var "m" :@: Var 
 
 sumOfSquares = GlobRef "sum" :@: (GlobRef "squares" :@: (GlobRef "upto" :@: num 1 :@: Var "N")) :@: num 0
 
-sumOfSquaresProg = Program ["x"] sumOfSquares (builtins ++ [sum_f, squares_f, upto_f])
+sumOfSquaresProg = Program ["N"] sumOfSquares (builtins ++ [sum_f, squares_f, upto_f])
 
 t1 = Program [] (GlobRef "+" :@: num 2  :@: num 3) builtins
 t2 = Program [] (GlobRef "+" :@: num 7  :@: num 0) builtins
@@ -36,25 +39,26 @@ t6 = Program [] (GlobRef ">" :@: num 3  :@: num 4) builtins
 
 graph = isRight $ buildTree 0 (Context []) (drive sumOfSquaresProg) nameSupplyInstance sumOfSquares
 
--- firstFold (Node a ()) = 
-
--- Tests
 
 aTest = GlobRef "sum" :@: (GlobRef "squares" :@: (GlobRef "upto" :@: num 1 :@: Var "n")) :@: num 0
-
 bTest = GlobRef "sum" :@: (GlobRef "squares" :@: (GlobRef "upto" :@: (GlobRef "+" :@: num 1 :@: num 1) :@: Var "n"))
   :@: (GlobRef "+" :@: (num 0) :@: (GlobRef "*" :@: num 1 :@: num 1))
-
 cTest = GlobRef "sum" :@: (GlobRef "squares" :@: (GlobRef "upto" :@: (GlobRef "+" :@: Var "x1" :@: num 1) :@: Var "n"))
   :@: (GlobRef "+" :@: Var "x2" :@: (GlobRef "*" :@: Var "x1" :@: Var "x1"))
-
 dTest = GlobRef "sum" :@: (GlobRef "squares" :@: (GlobRef "upto" :@: Var "x1" :@: Var "n")) :@: Var "x2"
-
 eTest = GlobRef "sum" :@: (GlobRef "squares" :@: (GlobRef "upto" :@: Var "ABBA" :@: Var "N")) :@: Var "CDDC"
-
 sosTest = GlobRef "sum" :@: (GlobRef "squares" :@: (GlobRef "upto" :@: num 1 :@: Var "x")) :@: num 0
 
-foldTest = renderDot $ fromRight (error "got left") $ buildTree 0 (Context []) (drive sumOfSquaresProg) nameSupplyInstance dTest
+testFunctionExtraction 
+  = extractFunctions (reduceDrive $ fromRight (error "got left") $ buildTree 0 (Context []) (drive sumOfSquaresProg) nameSupplyInstance sumOfSquares)
 
-ge1 = Lam "x" $ Lam "y" $ Var "y" :@: Var "x"
-ge2 = Lam "x" $ Lam "y" $ Var "x" :@: Var "y"
+foldTest = renderDot $ reduceDrive $ fromRight (error "got left") $ buildTree 0 (Context []) (drive sumOfSquaresProg) nameSupplyInstance dTest
+sumSquaresTest = reduceDrive $ fromRight (error "got left") $ buildTree 0 (Context []) (drive sumOfSquaresProg) nameSupplyInstance sumOfSquares
+resultingProgram = supercompile sumOfSquaresProg
+
+
+----------------
+--- RUN THIS ---
+----------------
+renderConfigGraph filename = writeFile filename (renderDot sumSquaresTest)
+----------------

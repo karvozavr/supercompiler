@@ -9,19 +9,30 @@ import Control.Monad.State
 
 type NameSupply = [Name]
 
-nameSupplyInstance = ["_VAR_" ++ (show x) | x <- [0..]]
+nameSupplyInstance = ["VAR" ++ (show x) | x <- [0..]]
 
-getFreeVars :: Expr -> [Name] 
-getFreeVars (Var x) = [] 
+getFreeVars :: [Name] -> Expr -> [Name] 
+getFreeVars ctx (Var x) 
+  | not (x `elem` ctx) = [x]
+  | otherwise = []
+
+getFreeVars ctx (Lam x body) = getFreeVars (x:ctx) body
+
+getFreeVars ctx (a :@: b) = nub (getFreeVars ctx a ++ getFreeVars ctx b)
+
+getFreeVars ctx (Case e opts) = nub ((getFreeVars ctx e) ++ (concat $ map (\(Pat _ args, e') -> getFreeVars (args ++ ctx) e') opts))
+
+getFreeVars ctx (Constr _ es) = nub (concat $ map (getFreeVars ctx) es)
+getFreeVars _ _ = []
 
 -- Substitution operator
 infixl 5 \-\
 
 (\-\) :: Expr -> Subst -> Expr
 (Var x)             \-\ sub = maybe (Var x) id (lookup x sub)
-(Constr name args)  \-\ sub = Constr name (map (\-\ (filter (\(n, _) -> n /= name) sub)) args)
+(Constr name args)  \-\ sub = Constr name (map (\-\ sub) args)
 (Lam name body)     \-\ sub = Lam name (body \-\ (filter (\(x, _) -> x /= name) sub))
-(Let (x, e1) e2)    \-\ sub = error "Let does not support substitution" -- Let (x, (e1 \-\ sub)) (e2 \-\ sub)
+(Let (y, e1) e2)    \-\ sub = Let (y, (e1 \-\ sub)) (e2 \-\ (filter (\(x, _) -> x /= y) sub))
 (Case e cases)      \-\ sub = Case (e \-\ sub) (map f cases) where
   f (p@(Pat _ args), ei) = (p, ei \-\ (filter (\(n, _) -> not $ n `elem` args) sub))
 (l :@: r)           \-\ sub = (l \-\ sub) :@: (r \-\ sub)
@@ -51,12 +62,12 @@ renaming e1 e2 = f $ partition isNothing $ renaming' (e1, e2) where
     then Just (concat xs) else Nothing
 
 renaming' :: (Expr, Expr) -> [Maybe (Name, Name)]
-renaming' ((Var x), (Var y)) = [Just (x, y)]
+renaming' ((Var x), (Var y)) = if x == y then [] else [Just (x, y)]
 renaming' ((Constr n1 args1), (Constr n2 args2)) | n1 == n2 = concat $ map renaming' $ zip args1 args2
-renaming' ((GlobRef n1), (GlobRef n2)) = [Just (n1, n2)]
-renaming' (Let (v, e1) e2, Let (v', e1') e2') = renaming' (e1, e1') ++ renaming' (e2, e2' \-\ [(v, Var v')])
+renaming' ((GlobRef n1), (GlobRef n2)) = []
+renaming' (Let (v, e1) e2, Let (v', e1') e2') = error "No renaming for Let supported"  -- renaming' (e1, e1') ++ renaming' (e2, e2' \-\ [(v, Var v')])
 renaming' (a1 :@: b1, a2 :@: b2) = renaming' (a1, a2) ++ renaming' (b1, b2) 
-renaming' (Lam x e1, Lam y e2) = renaming' (e1, e2 \-\ [(x, Var y)])
+renaming' (Lam x e1, Lam y e2) = renaming' (e1, e2 \-\ [(y, Var x)])
 renaming' (Case x pats1, Case y pats2) | patsEqual pats1 pats2 = 
     renaming' (x, y) ++ (concat $ map renaming' $ zip (map snd pats1) (map snd pats2))
 renaming' _  = [Nothing]
@@ -151,3 +162,16 @@ diving e (Lam v0 e0)     = embedding e e0
 diving e (e1 :@: e2)     = (embedding e e1) || (embedding e e2)
 diving e (Case e0 opts)  = (embedding e e0) || (any (== True) $ map (\(_, ei) -> embedding e ei) opts)
 diving e1 e2             = False 
+
+-- Check for function substitution 
+isFunSubst :: Expr -> Bool
+isFunSubst (Var _)                  = False
+isFunSubst (Constr _ [])            = False 
+isFunSubst (Constr _ args)          = False
+isFunSubst (Let (_, exprs) expr2)   = False
+isFunSubst (GlobRef name)           = True
+isFunSubst e@((Lam arg body) :@: r) = False 
+isFunSubst e@(l :@: r)              = isFunSubst l
+isFunSubst c@(Case (Constr _ constrArgs) pats) = False 
+isFunSubst (Case v@(Var varName) pats) = False 
+isFunSubst (Case expr pats) = isFunSubst expr

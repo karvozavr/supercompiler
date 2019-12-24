@@ -66,7 +66,7 @@ patsEqual p1 p2 = all (\(Pat name1 _, Pat name2 _) -> name1 == name2) $ zip (map
 
 -- Most Specific Generalization Algorithm
 
-data Generalization = Generalization { expression :: Expr, subst1 :: Subst, subst2 :: Subst }
+data Generalization = Generalization { expression :: Expr, subst1 :: Subst, subst2 :: Subst } deriving Show
 
 generalizeList :: NameSupply -> [(Expr, Expr)] -> ([Generalization], NameSupply)
 generalizeList names pairs = foldr f ([], names) pairs where
@@ -100,13 +100,28 @@ generalize ns (Lam v1 body1) (Lam v2 body2)
     freshBody1         = body1 \-\ [(v1, freshVar)]
     freshBody2         = body2 \-\ [(v2, freshVar)]
     (gen, ns2)         = generalize ns1 freshBody1 freshBody2
-  
--- generalize ns (Case sel1 bs1) (Case sel2 bs2) 
---   = undefined where
-    -- (Generalization genSel sub' sub'', ns1) = generalize ns sel1 sel2
-    -- makeFresh (Pat n1, Pat n2)
+
+generalize ns (Case sel1 bs1) (Case sel2 bs2) = (Generalization eGen theta' theta'', ns2) where
+  (Generalization genSel sub' sub'', ns1) = generalize ns sel1 sel2
+  (pats, ns2) = makeFresh ns1 bs1 bs2
+  f (pat, Generalization e _ _) = (pat, e)
+  bsGen   = map f pats
+  theta'  = sub' ++ (concat $ map (subst1 . snd) pats)
+  theta'' = sub'' ++ (concat $ map (subst2 . snd) pats)
+  eGen = Case genSel bsGen
 
 generalize ns e1 e2 = trivialGen ns e1 e2
+
+makeFresh :: NameSupply -> [(Pat, Expr)] -> [(Pat, Expr)] -> ([(Pat, Generalization)], NameSupply)
+makeFresh ns [] [] = ([], ns)
+
+makeFresh ns ((Pat n1 args1, e1):pats1) ((Pat n2 args2, e2):pats2) = (result, ns3) where
+  (freshNames, ns1) = splitAt (length args1) ns
+  freshVars = map Var freshNames
+  (genE, ns2) = generalize ns1 (e1 \-\ (zip args1 freshVars)) (e2 \-\ (zip args2 freshVars)) 
+  (pats, ns3) = makeFresh ns2 pats1 pats2
+  result = (Pat n1 freshNames, genE):pats
+  
 
 -- Homeomorphic embedding
 
@@ -126,25 +141,13 @@ coupling (e1' :@: e2') (e1'' :@: e2'') = (coupling e1' e1'') && (embedding e2' e
 coupling (Case e' opts') (Case e'' opts'') = 
   (coupling e' e'') && (all (== True) $ map (\((Pat n' _, e1), (Pat n'' _, e2)) -> (n' == n'') && (embedding e1 e2)) $ zip opts' opts'')
 
-coupling _ _ = False
+coupling (Var _) (Var _) = True
+
+coupling e1 e2 = e1 == e2
 
 diving :: Expr -> Expr -> Bool
 diving e (Constr _ args) = any (== True) $ map (embedding e) args
 diving e (Lam v0 e0)     = embedding e e0
 diving e (e1 :@: e2)     = (embedding e e1) || (embedding e e2)
 diving e (Case e0 opts)  = (embedding e e0) || (any (== True) $ map (\(_, ei) -> embedding e ei) opts)
-diving _ _               = False
-
--- Tests
-
-a = GlobRef "sum" :@: (GlobRef "squares" :@: (GlobRef "upto" :@: num 1 :@: Var "n")) :@: num 0
-
-b = GlobRef "sum" :@: (GlobRef "squares" :@: (GlobRef "upto" :@: (GlobRef "+" :@: num 1 :@: num 1) :@: Var "n"))
-  :@: (GlobRef "+" :@: (num 0) :@: (GlobRef "*" :@: num 1 :@: num 1))
-
-c = GlobRef "sum" :@: (GlobRef "squares" :@: (GlobRef "upto" :@: (GlobRef "+" :@: Var "x1" :@: num 1) :@: Var "n"))
-  :@: (GlobRef "+" :@: Var "x1" :@: (GlobRef "*" :@: Var "x2" :@: Var "x2"))
-
-d = GlobRef "sum" :@: (GlobRef "squares" :@: (GlobRef "upto" :@: Var "x1" :@: Var "n")) :@: Var "x2"
-
-sos = GlobRef "sum" :@: (GlobRef "squares" :@: (GlobRef "upto" :@: num 1 :@: Var "x")) :@: num 0
+diving e1 e2             = False 

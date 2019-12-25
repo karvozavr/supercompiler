@@ -9,7 +9,7 @@ import Control.Monad.State
 
 type NameSupply = [Name]
 
-nameSupplyInstance = ["VAR" ++ (show x) | x <- [0..]]
+nameSupplyInstance = (map (\x -> [x]) ['A'..'Z']) ++ ["VAR" ++ (show x) | x <- [0..]]
 
 getFreeVars :: [Name] -> Expr -> [Name] 
 getFreeVars ctx (Var x) 
@@ -25,6 +25,10 @@ getFreeVars ctx (Case e opts) = nub ((getFreeVars ctx e) ++ (concat $ map (\(Pat
 getFreeVars ctx (Constr _ es) = nub (concat $ map (getFreeVars ctx) es)
 getFreeVars _ _ = []
 
+subBody sub (Let m l@(Let _ _)) = Let m $ subBody sub l
+subBody sub (Let m body) = Let m $ body \-\ sub
+subBody sub body = body \-\ sub
+
 -- Substitution operator
 infixl 5 \-\
 
@@ -32,7 +36,7 @@ infixl 5 \-\
 (Var x)             \-\ sub = maybe (Var x) id (lookup x sub)
 (Constr name args)  \-\ sub = Constr name (map (\-\ sub) args)
 (Lam name body)     \-\ sub = Lam name (body \-\ (filter (\(x, _) -> x /= name) sub))
-(Let (y, e1) e2)    \-\ sub = Let (y, (e1 \-\ sub)) (e2 \-\ (filter (\(x, _) -> x /= y) sub))
+(Let (y, e1) e2)    \-\ sub = Let (y ++ "'", (e1 \-\ sub)) ((subBody [(y, Var (y ++ "'"))] e2) \-\ sub)
 (Case e cases)      \-\ sub = Case (e \-\ sub) (map f cases) where
   f (p@(Pat _ args), ei) = (p, ei \-\ (filter (\(n, _) -> not $ n `elem` args) sub))
 (l :@: r)           \-\ sub = (l \-\ sub) :@: (r \-\ sub)
@@ -175,3 +179,6 @@ isFunSubst e@(l :@: r)              = isFunSubst l
 isFunSubst c@(Case (Constr _ constrArgs) pats) = False 
 isFunSubst (Case v@(Var varName) pats) = False 
 isFunSubst (Case expr pats) = isFunSubst expr
+
+isDrivable :: Expr -> Bool 
+isDrivable e = True

@@ -4,7 +4,7 @@ import Language
 import LanguageIO
 import LanguageUtil
 
-data Option = Option Name Pat
+data Option = Option Expr Pat
 
 data Step a = 
     Edge a 

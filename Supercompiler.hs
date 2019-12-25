@@ -72,9 +72,9 @@ extractProgram funcs (Node e (Fold parent ren)) = case find (\def -> body def ==
     Nothing  -> error "Function not found"
 
 makeCase :: [FuncDef] -> [(Option, Graph Expr)] -> (Expr, [Def])
-makeCase funcs opts = (Case (Var name) (map fst r), (concat $ map snd r)) where      
-    (Option name _) = fst $ head opts   
-    f ((Option name pat), node) = let (e, defs) = extractProgram funcs node in ((pat, e), defs)
+makeCase funcs opts = (Case sel (map fst r), (concat $ map snd r)) where      
+    (Option sel _) = fst $ head opts   
+    f ((Option _ pat), node) = let (e, defs) = extractProgram funcs node in ((pat, e), defs)
     r = map f opts
 
 makeFunctionDef :: FuncDef -> Expr -> Expr
@@ -145,9 +145,14 @@ drive p ns (Var _)                  = (Stop, ns)
 drive p ns (Constr _ [])            = (Stop , ns)
 drive p ns (Constr _ args)          = (Edges args, ns)
 drive p ns (Let (_, expr1) expr2)   = (Edge expr2, ns)
-drive p ns (GlobRef name)           = (Edge $ resolveRef p name, ns)
+drive p ns (GlobRef name)           
+    | name `elem` (map (\(Def n _) -> n) builtins) = (Stop, ns)
+    | otherwise                           = (Edge $ resolveRef p name, ns)
 drive p ns e@((Lam arg body) :@: r) = (Edge $ body \-\ [(arg, r)] , ns)
-drive p ns e@(l :@: r)              = (Edge $ intStep p e, ns)
+drive p ns e@(l :@: r)              = case drive p ns l of 
+    (Edge l', ns1) -> (Edge (l' :@: r), ns1)
+    (Stop, ns1) -> (Stop, ns1)
+    _ -> error "Should not happen in drive"
 
 -- Hard Part: branching
 drive p ns c@(Case (Constr _ constrArgs) pats) = (Edge $ expr \-\ sub, ns) where
@@ -157,10 +162,11 @@ drive p ns c@(Case (Constr _ constrArgs) pats) = (Edge $ expr \-\ sub, ns) where
 drive p ns (Case v@(Var varName) pats) = (Options opts, ns1) where 
     (opts, ns1) = getOptions ns v pats
 
-drive p ns (Case expr pats) = (inject sel, ns1) where
+drive p ns (Case expr pats) = inject ns1 sel where
     (sel, ns1) = drive p ns expr
-    inject (Edge t) = Edge $ Case t pats
-    inject (Options options) = Options $ map f options
+    inject ns1 (Edge t) = (Edge $ Case t pats, ns1) 
+    inject ns1 (Options options) = (Options $ map f options, ns1) 
+    inject ns1 (Stop) = let (opts, ns2) = getOptions ns expr pats in (Options opts, ns2)
     f (option, e) = (option, Case e pats)
     
 drive p ns e = error $ "Drive: " ++ show e
@@ -172,6 +178,6 @@ getOptions ns v (pat:pats) = ((opt, expr):opts, ns2) where
     (opts, ns2) = getOptions ns1 v pats
 
 getOption :: NameSupply -> Expr -> (Pat, Expr) -> (Option, Expr, NameSupply)
-getOption ns (Var v) ((Pat constrName vars), body) = (Option v (Pat constrName freshVars), body \-\ sub, ns1) where
+getOption ns v ((Pat constrName vars), body) = (Option v (Pat constrName freshVars), body \-\ sub, ns1) where
     (freshVars, ns1) = splitAt (length vars) ns
     sub = zip vars (map Var freshVars)

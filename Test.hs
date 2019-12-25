@@ -14,6 +14,15 @@ import Data.List
 
 fdefTest1 = Def "Hello" (Let ("z", GlobRef "+" :@: Var "x" :@: Var "y") (Var "z"))
 
+-- Self apply
+
+fff = Def "FUNC0" (Lam "A" $ Lam "N" $ Lam "B" (Case (GlobRef ">" :@: Var "A" :@: Var "N") [
+  (Pat "True" [], Var "B"), (Pat "False" [], GlobRef "FUNC0" :@: (GlobRef "+" :@: Var "A" :@: num 1) :@: Var "N" :@: (GlobRef "+" :@: Var "B" :@: (GlobRef "*" :@: Var "A" :@: Var "A"))) ])) 
+
+fffexpr = GlobRef "FUNC0" :@: num 1 :@: Var "N" :@: num 0
+
+fffprog = Program ["N"] fffexpr ([fff] ++ builtins)
+
 sum_f = Def "sum" $ Lam "xs" (Lam "a" (Case (Var "xs")
     [(Pat "Nil" [], Var "a"),  
      (Pat "Cons" ["x", "xs'"], ((GlobRef "sum") :@: (Var "xs'") :@: (Var "a" `plus` Var "x")))]))
